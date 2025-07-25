@@ -71,4 +71,4 @@ Queries are handled by `web_app.py` via `ADKRunner`. `ADKRunner` first attempts 
 
 ## AI Assistance Disclosure
 
-Google Gemini (as an AI Assistant) was used for debugging, code refinement, CSS generation, a
+Google Gemini (as an AI Assistant) was used for debugging, code refinement, CSS generation, and documentation.
