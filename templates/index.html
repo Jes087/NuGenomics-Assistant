@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NuGenomics Assistant</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+  <body>
+    <div class="container">
+      <h1>NuGenomics Assistant</h1>
+      <p>Your guide to genetic wellness and NuGenomics FAQs.</p>
+
+      <h2>Ask a Question</h2>
+      <div class="input-group">
+        <input
+          type="text"
+          id="question"
+          placeholder="e.g., What is genetic predispostion?"
+          onkeydown="if(event.key === 'Enter') sendQuestion()"
+        />
+        <button onclick="sendQuestion()" id="askButton">Ask</button>
+      </div>
+
+      <div class="loading-spinner" id="loadingSpinner"></div>
+
+      <div class="response-area">
+        <p><strong>Response:</strong></p>
+        <p id="response">
+          Waiting for your question or click on an FAQ below...
+        </p>
+        <p id="source"></p>
+      </div>
+
+      <div class="faq-section">
+        <h2>Frequently Asked Questions</h2>
+        <ul id="faqList" class="faq-list">
+          <p id="faqLoading">Loading FAQs...</p>
+        </ul>
+        <p id="moreFaqsLink">
+          <a
+            href="https://www.nugenomics.in/faqs/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            View More FAQs on NuGenomics.in &rarr;
+          </a>
+        </p>
+      </div>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", loadFAQs); // Load FAQs when page loads
+
+      async function loadFAQs() {
+        const faqListElement = document.getElementById("faqList");
+        const faqLoadingElement = document.getElementById("faqLoading");
+        const numRandomFAQs = 4; // Display 4 random FAQs
+
+        try {
+          const res = await fetch("/faqs_data");
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+          const allFaqs = await res.json(); // Get all FAQs
+
+          faqListElement.innerHTML = ""; // Clear "Loading FAQs..."
+
+          if (allFaqs.length === 0) {
+            faqListElement.innerHTML = "<p>No FAQs available.</p>";
+            return;
+          }
+
+          // Shuffle the array and pick a subset
+          // Using Fisher-Yates (Knuth) shuffle algorithm for better randomness
+          for (let i = allFaqs.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [allFaqs[i], allFaqs[j]] = [allFaqs[j], allFaqs[i]]; // Swap
+          }
+
+          const faqsToDisplay = allFaqs.slice(
+            0,
+            Math.min(numRandomFAQs, allFaqs.length)
+          ); // Ensure we don't try to get more than available
+
+          faqsToDisplay.forEach((faq) => {
+            const listItem = document.createElement("li");
+            listItem.className = "faq-item";
+            listItem.textContent = faq.question;
+            listItem.onclick = () => {
+              document.getElementById("question").value = faq.question;
+              sendQuestion(); // Automatically send the question when clicked
+            };
+            faqListElement.appendChild(listItem);
+          });
+        } catch (error) {
+          console.error("Failed to load FAQs:", error);
+          faqListElement.innerHTML =
+            '<p style="color: red;">Failed to load FAQs. Please try refreshing.</p>';
+        }
+      }
+
+      async function sendQuestion() {
+        const questionInput = document.getElementById("question");
+        const responseDisplay = document.getElementById("response");
+        const sourceDisplay = document.getElementById("source");
+        const askButton = document.getElementById("askButton");
+        const loadingSpinner = document.getElementById("loadingSpinner");
+
+        const question = questionInput.value.trim();
+
+        if (!question) {
+          responseDisplay.innerText = "Please enter a question.";
+          sourceDisplay.innerText = "";
+          return;
+        }
+
+        askButton.disabled = true;
+        questionInput.disabled = true;
+        responseDisplay.innerText = "Thinking...";
+        sourceDisplay.innerText = "";
+        loadingSpinner.style.display = "block";
+
+        try {
+          const res = await fetch("/ask", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ question }),
+          });
+
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+
+          const data = await res.json();
+
+          responseDisplay.innerText = data.answer;
+          sourceDisplay.innerText = "(Answer source: " + data.source + ")";
+        } catch (error) {
+          console.error("Failed to fetch response:", error);
+          responseDisplay.innerText =
+            "An error occurred while getting the answer. Please try again.";
+          sourceDisplay.innerText = "(Source: Client-side Error)";
+        } finally {
+          askButton.disabled = false;
+          questionInput.disabled = false;
+          loadingSpinner.style.display = "none";
+          // questionInput.value = ''; // Optional: Clear input after sending
+          questionInput.focus();
+        }
+      }
+    </script>
+  </body>
+</html>
